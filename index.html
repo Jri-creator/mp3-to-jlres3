@@ -43,8 +43,10 @@
       const input = document.getElementById('file-input');
       const status = document.getElementById('status');
       const files = input.files;
+
       if (!files.length) {
         status.textContent = 'Please select some files.';
+        console.log('No files selected.');
         return;
       }
 
@@ -52,41 +54,53 @@
       let count = 1;
 
       status.textContent = 'Processing...';
+      console.log('Starting conversion process.');
 
       for (let file of files) {
         if (file.name.endsWith('.zip')) {
+          console.log(`Reading zip file: ${file.name}`);
           try {
             const zipContent = await JSZip.loadAsync(file);
             for (let name in zipContent.files) {
               const entry = zipContent.files[name];
               if (!entry.dir && name.toLowerCase().endsWith('.mp3')) {
                 const blob = await entry.async('blob');
-                zip.file(`${count++}.jlres3`, blob);
+                zip.file(`${count}.jlres3`, blob);
+                console.log(`Extracted and renamed: ${name} → ${count}.jlres3`);
+                count++;
               }
             }
           } catch (err) {
-            console.error(`Error processing zip: ${file.name}`, err);
-            status.textContent = `Error processing zip file: ${file.name}`;
+            console.error(`Error reading zip file: ${file.name}`, err);
+            status.textContent = `Error processing zip: ${file.name}`;
             return;
           }
         } else if (file.name.toLowerCase().endsWith('.mp3')) {
           const blob = await file.arrayBuffer();
-          zip.file(`${count++}.jlres3`, blob);
+          zip.file(`${count}.jlres3`, blob);
+          console.log(`Renamed file: ${file.name} → ${count}.jlres3`);
+          count++;
+        } else {
+          console.log(`Skipped unsupported file: ${file.name}`);
         }
       }
 
       if (count === 1) {
         status.textContent = 'No .mp3 files found.';
+        console.log('Conversion complete — no .mp3 files found.');
         return;
       }
 
+      console.log(`Generating final zip with ${count - 1} files...`);
       const finalZip = await zip.generateAsync({ type: "blob" });
+
       const downloadLink = document.createElement("a");
       downloadLink.href = URL.createObjectURL(finalZip);
       downloadLink.download = "converted_jlres3.zip";
       downloadLink.click();
 
       status.textContent = `Converted ${count - 1} files successfully!`;
+      console.log('Conversion complete. Download triggered.');
     });
   </script>
 </body>
