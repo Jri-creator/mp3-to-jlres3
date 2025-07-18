@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MP3 to JLRES3 Converter</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      padding: 2rem;
+      background: #f4f4f4;
+    }
+    input[type="file"] {
+      margin: 1rem 0;
+    }
+    button {
+      padding: 0.6rem 1.2rem;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+    #status {
+      margin-top: 1rem;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h1>MP3 to JLRES3 Converter</h1>
+  <p>Upload .mp3 files or a .zip containing them. Converts to numbered .jlres3 files in a .zip.</p>
+
+  <input type="file" id="file-input" multiple />
+  <br>
+  <button id="convert-btn">Convert and Download</button>
+
+  <div id="status"></div>
+
+  <!-- JSZip library from CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+
+  <script>
+    document.getElementById('convert-btn').addEventListener('click', async () => {
+      const input = document.getElementById('file-input');
+      const status = document.getElementById('status');
+      const files = input.files;
+      if (!files.length) {
+        status.textContent = 'Please select some files.';
+        return;
+      }
+
+      const zip = new JSZip();
+      let count = 1;
+
+      status.textContent = 'Processing...';
+
+      for (let file of files) {
+        if (file.name.endsWith('.zip')) {
+          try {
+            const zipContent = await JSZip.loadAsync(file);
+            for (let name in zipContent.files) {
+              const entry = zipContent.files[name];
+              if (!entry.dir && name.toLowerCase().endsWith('.mp3')) {
+                const blob = await entry.async('blob');
+                zip.file(`${count++}.jlres3`, blob);
+              }
+            }
+          } catch (err) {
+            console.error(`Error processing zip: ${file.name}`, err);
+            status.textContent = `Error processing zip file: ${file.name}`;
+            return;
+          }
+        } else if (file.name.toLowerCase().endsWith('.mp3')) {
+          const blob = await file.arrayBuffer();
+          zip.file(`${count++}.jlres3`, blob);
+        }
+      }
+
+      if (count === 1) {
+        status.textContent = 'No .mp3 files found.';
+        return;
+      }
+
+      const finalZip = await zip.generateAsync({ type: "blob" });
+      const downloadLink = document.createElement("a");
+      downloadLink.href = URL.createObjectURL(finalZip);
+      downloadLink.download = "converted_jlres3.zip";
+      downloadLink.click();
+
+      status.textContent = `Converted ${count - 1} files successfully!`;
+    });
+  </script>
+</body>
+</html>
